@@ -39,7 +39,7 @@ async def get_google_trending_topics(limit: int = 10) -> str:
         pretty_date = "Unknown date"
         if t.get("publishedAt"):
             try:
-                dt = datetime.datetime(*t["publishedAt"][:6])  # assuming struct_time
+                dt = datetime(*t["publishedAt"][:6])  # assuming struct_time
                 pretty_date = dt.strftime("%b %d, %Y %I:%M %p")
             except Exception:
                 pretty_date = str(t["publishedAt"])
