@@ -1,17 +1,25 @@
-import feedparser
 import re
-
+import feedparser
 
 def fetch_reddit_popular_topics(limit=10):
-    url = "https://www.reddit.com/discover.rss"
     topics = []
+    url = "https://www.reddit.com/discover.rss"
     d = feedparser.parse(url, request_headers={"Accept-Languge": "en-US"})
     for e in d.entries[:limit * 2]:
-        t = (e.get("title") or "").strip()
-        t = re.sub(r'\s*\[[^\]]+\]\s*', ' ', t).strip()
-        if t and 2 <= len(t.split()) <= 12 and len(t) <= 140:
-            if t not in topics:
-                topics.append(t)
+        title = (e.get("title") or "").strip()
+        title = re.sub(r'\s*\[[^\]]+\]\s*', ' ', title).strip()
+        summary = (e.get("summary" or "")).strip()
+        links = [i.get("href") for i in (e.get("links") or [])]
+        published = e.get("published_parsed")
+
+        topics.append({
+            "title": title,
+            "summary": summary,
+            "links": links,
+            "publishDate": published
+        })
+
         if len(topics) >= limit:
             break
-    return topics[:limit]
+
+    return topics
