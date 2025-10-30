@@ -40,7 +40,7 @@ class S3Uploader:
         # Generate key unless provided
         if not key:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            key = f"trending-news/{timestamp}.pdf"
+            key = f"{timestamp}.pdf"
 
         # Ensure key doesn't start with /
         key = key.lstrip('/')

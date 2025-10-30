@@ -1,10 +1,11 @@
+from typing import Sequence
 from datetime import datetime
 from contextlib import asynccontextmanager
 from starlette.applications import Starlette
 from starlette.routing import Mount
 from mcp.server.fastmcp import FastMCP
 from trending_server.client import fetch_reddit_popular_topics, fetch_google_trends_rss_struct
-from trending_server.utils import generate_trending_news_pdf, S3Uploader
+from trending_server.utils import generate_trending_topics_pdf, S3Uploader, TrendingItemModel
 
 mcp = FastMCP("Trends")
 
@@ -65,40 +66,19 @@ async def get_google_trending_topics(limit: int = 10) -> str:
 
 
 @mcp.tool()
-async def create_trending_news_pdf(
-    asOf: str,
-    trending: list[dict]
-) -> str:
+async def create_trending_topics_report(trending: Sequence[TrendingItemModel]) -> str:
     """
-    Generate a PDF from trending news data and upload it to S3-compatible storage.
-
-    Args:
-        asOf: ISO-8601 timestamp for when the trending data is valid
-        trending: List of trending news items, each containing:
-            - title: Headline or title of the trending story
-            - summary: Short summary or description of the story
-            - category: One of ENTERTAINMENT, BUSINESS, POLITICS, or SPORTS
-            - audience: Target audience or region (e.g. 'Virginia', 'US')
-            - items: List of source URLs for the story
-
-    Returns:
-        str: The CDN URL (if configured) or direct storage URL of the uploaded PDF
+    Generate a PDF from trending topics data and upload it to S3-compatible storage.
     """
-    # Construct the data dictionary matching the schema
-    data = {
-        "asOf": asOf,
-        "trending": trending
-    }
-
     # Generate PDF
-    pdf_buffer = generate_trending_news_pdf(data)
+    pdf_buffer = generate_trending_topics_pdf(trending)
 
     # Upload to storage
     uploader = S3Uploader()
     url = uploader.upload_pdf(
         pdf_data=pdf_buffer,
         metadata={
-            'asOf': asOf,
+            'as_of': datetime.now().strftime("%b %d, %Y %I:%M %p"),
             'trending_count': str(len(trending))
         }
     )
@@ -117,5 +97,5 @@ app = Starlette(
     routes=[
         # streamable HTTP endpoint at /mcp
         Mount("/", app=mcp.streamable_http_app()),
-    ],
+    ]
 )

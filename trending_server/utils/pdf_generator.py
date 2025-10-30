@@ -1,3 +1,4 @@
+from typing import Literal, Sequence
 from datetime import datetime
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
@@ -6,15 +7,22 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 from reportlab.lib.colors import HexColor
+from pydantic import BaseModel, HttpUrl
+
+Category = Literal["ENTERTAINMENT", "BUSINESS", "POLITICS", "SPORTS"]
 
 
-def generate_trending_news_pdf(data: dict) -> BytesIO:
+class TrendingItemModel(BaseModel):
+    title: str
+    summary: str
+    category: Category
+    audience: str
+    items: list[HttpUrl]
+
+
+def generate_trending_topics_pdf(trending_items: Sequence[TrendingItemModel]) -> BytesIO:
     """
     Generate a PDF from trending news data.
-
-    Args:
-        data: Dictionary with 'asOf' and 'trending' keys matching the schema
-
     Returns:
         BytesIO object containing the PDF data
     """
@@ -22,10 +30,10 @@ def generate_trending_news_pdf(data: dict) -> BytesIO:
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
-        rightMargin=0.75*inch,
-        leftMargin=0.75*inch,
-        topMargin=0.75*inch,
-        bottomMargin=0.75*inch,
+        rightMargin=0.75 * inch,
+        leftMargin=0.75 * inch,
+        topMargin=0.75 * inch,
+        bottomMargin=0.75 * inch,
     )
 
     # Create story elements
@@ -97,47 +105,37 @@ def generate_trending_news_pdf(data: dict) -> BytesIO:
     story.append(Paragraph("Trending News Report", title_style))
 
     # Add date
-    as_of = data.get('asOf', '')
-    if as_of:
-        try:
-            dt = datetime.fromisoformat(as_of.replace('Z', '+00:00'))
-            formatted_date = dt.strftime("%B %d, %Y at %I:%M %p %Z")
-        except Exception:
-            formatted_date = as_of
-    else:
-        formatted_date = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+    formatted_date = datetime.now().strftime("%B %d, %Y at %I:%M %p")
 
     story.append(Paragraph(f"As of: {formatted_date}", date_style))
-    story.append(Spacer(1, 0.2*inch))
+    story.append(Spacer(1, 0.2 * inch))
 
     # Add trending stories
-    trending_items = data.get('trending', [])
-
     for idx, item in enumerate(trending_items, 1):
         # Add story number and title
-        title = item.get('title', 'Untitled')
+        title = item.title or "Untitled"
         story.append(Paragraph(f"{idx}. {title}", story_title_style))
 
         # Add category and audience
-        category = item.get('category', 'N/A')
-        audience = item.get('audience', 'N/A')
+        category = item.category or 'N/A'
+        audience = item.audience or 'N/A'
         story.append(Paragraph(f"Category: {category} | Audience: {audience}", category_style))
 
         # Add summary
-        summary = item.get('summary', 'No summary available')
+        summary = item.summary or 'No summary available'
         story.append(Paragraph(summary, summary_style))
 
         # Add sources
-        sources = item.get('items', [])
+        sources = item.items or []
         if sources:
             story.append(Paragraph("<b>Sources:</b>", summary_style))
             for source_url in sources:
                 # Escape special characters and create clickable link
-                safe_url = source_url.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                safe_url = source_url.encoded_string()
                 story.append(Paragraph(f'• <link href="{safe_url}">{safe_url}</link>', source_style))
 
         # Add spacing between stories
-        story.append(Spacer(1, 0.3*inch))
+        story.append(Spacer(1, 0.3 * inch))
 
         # Page break after every 3 stories (optional)
         if idx % 3 == 0 and idx < len(trending_items):
